@@ -3,8 +3,12 @@
 from PIL import Image, ImageFont, ImageDraw
 import time
 import re
+import textwrap
 
 from exception import ManualError
+
+def text_wrap(string, w):
+    return textwrap.wrap(string, width=w)
 
 class ImageGenerator:
     
@@ -20,19 +24,48 @@ class ImageGenerator:
         self.draw = ImageDraw.Draw(self.image)
         return self.image
 
-    def create_text(self, text="i am a moron", font_size=25, font_color=(255,255,255), font_coord=(0,0)):
+    def create_text(
+            self, text="", 
+            font_size=25, font_color=(255,255,255), font_coord=(0,0), 
+            wrap=False, wrap_length=20,
+            align="MIDDLE"):
         try:
+            self.font = ImageFont.truetype(self.font_path, font_size)
             if not self.draw or not self.image:
                 raise ManualError("lol, cannot draw")
-            else:
-                self.font = ImageFont.truetype(self.font_path, font_size)
+
+            if not wrap:
+                font_coord = self.__align(align, font_size, font_coord, len(text.split("\n")) )
                 self.draw.text( font_coord, text, font_color, font=self.font)
+                self.draw = ImageDraw.Draw(self.image)
+                return self.image
+
+            else:
+                para = text_wrap(text, wrap_length)
+                font_coord = self.__align(align, font_size, font_coord, len(para) )
+                curx,cury = font_coord
+                pad = 10
+                for line in para:
+                    w,h = self.draw.textsize(line, font=self.font)
+                    self.draw.text( ((self.width-w)/2, cury), line, font=self.font)
+                    cury += h+pad
+
                 self.draw = ImageDraw.Draw(self.image)
                 return self.image
 
         except ManualError as merr:
             merr.display()
             return False
+
+    def __align(self, align, font_size, font_coord, n):
+        if align == "TOP":
+            return (font_coord[0], 0)
+        if align == "BOTTOM":
+            return (font_coord[0], self.height-font_size*n*2)
+        if align == "MIDDLE":
+            return (font_coord[0], self.height/2 - n*font_size/2)
+        else:
+            return font_coord
 
     def save_image(self, image,  filename):
         if not filename:
@@ -52,7 +85,15 @@ class ImageGenerator:
 def main():
     imggen = ImageGenerator(800, 600)
     image = imggen.create_background( (0,0,0) )
-    image = imggen.create_text(text="I am a \nmoron", font_size=25, font_color=(255,255,255), font_coord=(500,0))
+    image = imggen.create_text(
+            #text="Hello world!\nI am a moron\nand yes\ni can play something", 
+            text="Hello world i am a moron and I am highly contagious",
+            font_size=25, 
+            font_color=(255,255,255), 
+            font_coord=(350,0), 
+            wrap=True, wrap_length=20,
+            align="MIDDLE"
+        )
     imggen.save_image(image, 'test')
 
 
